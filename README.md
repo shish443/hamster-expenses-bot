@@ -24,7 +24,7 @@
 Сначала скопируйте репозиторий себе на компьютер и перейдите в папку проекта:
 
 ```bash
-git clone <ссылка-на-репозиторий>
+git clone <https://github.com/shish443/hamster-expenses-bot>
 cd hamster-expenses-bot
 
 ```
