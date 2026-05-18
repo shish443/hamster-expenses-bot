@@ -10,6 +10,10 @@ import (
 )
 
 func Parser(bot *tgbotapi.BotAPI, update tgbotapi.Update) (*Command, error) {
+	// Если это не команда бот игнорит
+	if update.Message == nil || update.Message.Text == "" {
+		return nil, nil
+	}
 	// удаление пробелов
 	text := strings.TrimSpace(update.Message.Text)
 
@@ -18,9 +22,9 @@ func Parser(bot *tgbotapi.BotAPI, update tgbotapi.Update) (*Command, error) {
 
 	if firstRune == '/' {
 		text = text[size:]
-		text := strings.TrimSpace(text)
+		text = strings.TrimSpace(text)
 		if text == "" {
-			return nil, errors.New("пустая команда")
+			return nil, nil
 		}
 
 	} else {
