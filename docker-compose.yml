@@ -17,19 +17,37 @@ services:
       timeout: 5s
       retries: 5
 
+  proxy:
+    image: ghcr.io/sagernet/sing-box:latest
+    container_name: hamster_proxy
+    command: run -c /etc/sing-box/config.json
+    volumes:
+      - ./sing_box_config.json:/etc/sing-box/config.json
+    restart: unless-stopped
+
   bot:
     build: .
     container_name: hamster_bot
+    network_mode: "service:proxy"
     environment:
       - ApiTelegramBot=${ApiTelegramBot}
+      - ADMIN_ID=${ADMIN_ID}
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
+      - HTTP_PROXY=http://127.0.0.1:2080  
+      - HTTPS_PROXY=http://127.0.0.1:2080
+      - http_proxy=http://127.0.0.1:2080
+      - https_proxy=http://127.0.0.1:2080
+      - NO_PROXY=postgres,host.docker.internal
+      - no_proxy=postgres,host.docker.internal
     depends_on:
       postgres:
         condition: service_healthy
+      proxy:
+        condition: service_started
     restart: unless-stopped
 
 volumes:

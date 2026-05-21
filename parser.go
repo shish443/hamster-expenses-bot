@@ -33,7 +33,7 @@ func Parser(bot *tgbotapi.BotAPI, update tgbotapi.Update) (*Command, error) {
 
 	//разбиваем строку
 	parts := strings.Fields(text)
-	if len(parts) == 0 { // на всякий
+	if len(parts) == 0 {
 		return nil, errors.New("пустая команда")
 	}
 
