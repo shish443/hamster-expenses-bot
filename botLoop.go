@@ -1,4 +1,5 @@
 // botLoop.go
+
 package main
 
 import (
@@ -24,6 +25,11 @@ func StartBotLoop(ctx context.Context, bot *tgbotapi.BotAPI, updates <-chan tgbo
 		//Обработку сообщения в отдельной горутине
 		go func(u tgbotapi.Update) {
 			incrementMessages()
+			//обработка инлайн кнопок
+			if u.CallbackQuery != nil {
+				handleCallbackQuery(ctx, bot, u.CallbackQuery)
+				return
+			}
 			//проверка на пустое сообщение и бота
 			if u.Message == nil || u.Message.Text == "" || u.Message.From.IsBot == true {
 				return
@@ -81,7 +87,7 @@ func StartBotLoop(ctx context.Context, bot *tgbotapi.BotAPI, updates <-chan tgbo
 			}
 
 			//все ок отправляем сообщение
-			if err := sendReply(ctx, bot, cmd.ChatID, cmd.MsgID, response); err != nil {
+			if err := sendReplyWithKeyboard(ctx, bot, cmd.ChatID, cmd.MsgID, response); err != nil {
 				log.Printf("Failed to send reply: %v", err)
 			}
 
@@ -100,8 +106,30 @@ func StartBotLoop(ctx context.Context, bot *tgbotapi.BotAPI, updates <-chan tgbo
 func sendReply(ctx context.Context, bot *tgbotapi.BotAPI, chatID int64, replyTo int, text string) error {
 	msg := tgbotapi.NewMessage(chatID, text)
 
-	msg.ParseMode = tgbotapi.ModeMarkdownV2
+	msg.ParseMode = tgbotapi.ModeMarkdown
 	msg.ReplyToMessageID = replyTo
+
+	_, err := bot.Send(msg)
+	return err
+}
+
+// отправляет ответ + главное меню с кнопками
+func sendReplyWithKeyboard(ctx context.Context, bot *tgbotapi.BotAPI, chatID int64, replyTo int, text string) error {
+	msg := tgbotapi.NewMessage(chatID, text)
+	msg.ParseMode = tgbotapi.ModeMarkdown
+	msg.ReplyToMessageID = replyTo
+
+	msg.ReplyMarkup = getMainKeyboard()
+
+	_, err := bot.Send(msg)
+	return err
+}
+
+func sendReplyWithCalcKeyboard(ctx context.Context, bot *tgbotapi.BotAPI, chatID int64, replyTo int, text string) error {
+	msg := tgbotapi.NewMessage(chatID, text)
+	msg.ParseMode = tgbotapi.ModeMarkdown
+	msg.ReplyToMessageID = replyTo
+	msg.ReplyMarkup = getCalcKeyboard()
 
 	_, err := bot.Send(msg)
 	return err
@@ -122,4 +150,70 @@ func resetNonCommandCounter(userID int64) {
 	nonCommandCounter.Lock()
 	delete(nonCommandCounter.m, userID) // сбрасываем при любой команде
 	nonCommandCounter.Unlock()
+}
+
+func handleCallbackQuery(ctx context.Context, bot *tgbotapi.BotAPI, cb *tgbotapi.CallbackQuery) {
+	_, _ = bot.Request(tgbotapi.NewCallback(cb.ID, ""))
+
+	switch cb.Data {
+	case "cmd_help":
+		sendReplyWithKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID, HandleHelp())
+		return
+
+	case "cmd_add":
+		sendReplyWithKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID,
+			"Напиши расход, например:\n\n`/add 150 корм`")
+		return
+
+	case "cmd_calc":
+		sendReplyWithCalcKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID, "Выбери период:")
+		return
+
+	case "cmd_list", "cmd_del":
+		// Показываем список с кнопками удаления
+		text, keyboard, err := buildListWithKeyboard(ctx, cb.From.ID, "list")
+		if err != nil {
+			sendReplyWithKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID, "❌ Ошибка при получении списка")
+			return
+		}
+		if text == "📭 У тебя пока нет записей расходов.\n\nДобавь первую с помощью кнопки «➕ Добавить» или команды /add" {
+			sendReplyWithKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID, text)
+			return
+		}
+
+		msg := tgbotapi.NewMessage(cb.Message.Chat.ID, text)
+		msg.ParseMode = tgbotapi.ModeMarkdown
+		msg.ReplyMarkup = keyboard
+		bot.Send(msg)
+		return
+
+	case "calc_day", "calc_week", "calc_month", "calc_quarter", "calc_halfyear", "calc_year", "calc_all":
+		period := cb.Data[5:]
+		response, err := HandleCalc(ctx, []string{period}, cb.From.ID)
+		if err != nil {
+			response = "❌ Ошибка: " + err.Error()
+		}
+		sendReplyWithKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID, response)
+		return
+
+	default:
+		// Удаление записи
+		if len(cb.Data) > 4 && cb.Data[:4] == "del_" {
+			idStr := cb.Data[4:]
+			response, err := HandleDelete(ctx, []string{idStr}, cb.From.ID)
+			if err != nil {
+				response = "❌ " + err.Error()
+			}
+			sendReplyWithKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID, response)
+			return
+		}
+
+		// Главное меню
+		if cb.Data == "main_menu" {
+			sendReplyWithKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID, "Главное меню:")
+			return
+		}
+
+		sendReplyWithKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID, "Неизвестная кнопка")
+	}
 }

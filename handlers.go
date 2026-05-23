@@ -18,29 +18,30 @@ import (
 var mskLoc = time.FixedZone("MSK", 3*60*60) // ютк+3
 
 // HandleHelp - приветствие и список команд
+// HandleHelp - приветствие и список команд
 func HandleHelp() string {
 	return `👋 Привет! Я бот для учёта расходов на хомячков 🐹
 
 📋 Доступные команды:
 
-• /add <сумма> [описание] - добавить расход
+• /add <сумма> [описание] — добавить расход
   Пример: /add 150 корм
 
-• /del <ID> - удалить запись
+• /del <ID> — удалить запись
   Пример: /del 42
 
-• /calc [период] - сумма расходов
-  Периоды: day (день), week (неделя), month (месяц), quarter (квартал), halfyear(полгода), year (год), (все)
+• /calc [период] — сумма расходов
+  Примеры: /calc day, /calc week, /calc month, /calc all
 
-• /list - последние 5 записей
-• /listWeek, /listMonth, /listQuarter, /listYear - записи за период
+• /list — последние 5 записей
+• /listWeek, /listMonth, /listQuarter, /listYear — записи за период
 
-• /complaint <текст> - отправить жалобу админу
+• /complaint <текст> — отправить жалобу админу
 
-• /info - об авторе
-• /help - это сообщение
+• /info — об авторе
+• /help — это сообщение
 
-Пиши /help в любой момент ❤️`
+Просто нажми на команду выше — она скопируется! 👆`
 }
 
 // HandleAdd - добавление расхода
@@ -193,8 +194,13 @@ func calcAllTime(ctx context.Context, userID int64) (string, error) {
 
 // HandleList - вывод записей
 func HandleList(ctx context.Context, args []string, userID int64, listType string) (string, error) {
-	// Определяем LIMIT и startDate
-	limit := 100
+	text, _, err := buildListWithKeyboard(ctx, userID, listType)
+	return text, err
+}
+
+// возвращает текст + клавиатуру
+func buildListWithKeyboard(ctx context.Context, userID int64, listType string) (string, tgbotapi.InlineKeyboardMarkup, error) {
+	limit := 10
 	now := time.Now().In(mskLoc)
 	var startDate time.Time
 
@@ -229,14 +235,18 @@ func HandleList(ctx context.Context, args []string, userID int64, listType strin
 		userID, startDate, limit,
 	)
 	if err != nil {
-		log.Printf("❌ DB Error (List): %v | user=%d", err, userID)
-		return "", fmt.Errorf("ошибка чтения записей")
+		return "", tgbotapi.InlineKeyboardMarkup{}, fmt.Errorf("ошибка чтения записей")
 	}
 	defer rows.Close()
 
 	var result strings.Builder
-	result.WriteString("📋 Ваши записи:\n")
+	result.WriteString("📋 Ваши последние записи:\n\n")
 	count := 0
+
+	var records []struct {
+		ID   int
+		Text string
+	}
 
 	for rows.Next() {
 		var id int
@@ -253,21 +263,28 @@ func HandleList(ctx context.Context, args []string, userID int64, listType strin
 			desc = description.String
 		}
 
-		result.WriteString(fmt.Sprintf("%d. %.2f ₽ — %s (%s)\n",
-			id, amount, desc, createdAt.In(mskLoc).Format("02.01 15:04")))
+		line := fmt.Sprintf("%d. %.2f ₽ — %s (%s)\n",
+			id, amount, desc, createdAt.In(mskLoc).Format("02.01 15:04"))
+
+		result.WriteString(line)
+		records = append(records, struct {
+			ID   int
+			Text string
+		}{id, line})
 		count++
 	}
 
 	if err = rows.Err(); err != nil {
-		return "", fmt.Errorf("ошибка при чтении данных")
+		return "", tgbotapi.InlineKeyboardMarkup{}, err
 	}
 
 	if count == 0 {
-		return "📭 Записей за этот период нет. Добавьте первую через /add 150 корм", nil
+		return "📭 У тебя пока нет записей расходов.\n\nДобавь первую с помощью кнопки «➕ Добавить» или команды /add", tgbotapi.InlineKeyboardMarkup{}, nil
 	}
 
-	// Добавляем сумму за период
-	return result.String(), nil
+	keyboard := createDeleteKeyboard(records)
+
+	return result.String() + "\n🗑 Нажми на кнопку, чтобы удалить запись:", keyboard, nil
 }
 
 // инфо об авторе
