@@ -11,10 +11,11 @@ import (
 	"strings"
 )
 
+// start.go тупо скрипт для первоначальной настройки и запуска бота
 func main() {
 	fmt.Println("Накатываем окружение для Хамстер-Бота")
 
-	// === Создание .env ===
+	// создание .env
 	if _, err := os.Stat(".env"); err == nil {
 		fmt.Println("файл .env уже существует. Пропускаем настройку переменных.")
 	} else if os.IsNotExist(err) {
@@ -102,7 +103,7 @@ func setupEnv() error {
 		fmt.Println("❌ Пароли не совпадают! Попробуйте ещё раз.")
 	}
 
-	//какие времена-такие и решения
+	//какие времена-такие и решения (обход блокировок)
 	fmt.Print("\n ваш сервер в РФ / нужен обход блокировок Telegram? (y/n): ")
 	proxyChoice, _ := reader.ReadString('\n')
 	proxyChoice = strings.ToLower(strings.TrimSpace(proxyChoice))
@@ -129,6 +130,7 @@ func setupEnv() error {
 	return nil
 }
 
+// setupProxy запрашивает у пользователя JSON-конфиг sing-box и сохроняет в джейсон файл
 func setupProxy(reader *bufio.Reader) string {
 	fmt.Println("\n📋 Вставьте ПОЛНЫЙ JSON конфиг sing-box (или Enter для минимального и отредактируйте его вручную):")
 	fmt.Println("(вставьте и нажмите Enter два раза)")
@@ -144,7 +146,7 @@ func setupProxy(reader *bufio.Reader) string {
 			lines = append(lines, line)
 		}
 	}
-
+	// если пользователь ничего не ввёл - создаётся минимальный конфиг
 	configStr := strings.Join(lines, "\n")
 	if configStr == "" {
 		fmt.Println("Создаём минимальный конфиг")

@@ -11,15 +11,17 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// счётчик подряд идущих не команд
 var (
 	nonCommandCounter = struct {
 		sync.Mutex
-		m map[int64]int //счётчик подряд идущих не команд
+		m map[int64]int
 	}{
 		m: make(map[int64]int),
 	}
 )
 
+// основной цикл обработки обновлений от тг
 func StartBotLoop(ctx context.Context, bot *tgbotapi.BotAPI, updates <-chan tgbotapi.Update) {
 	for update := range updates {
 		//Обработку сообщения в отдельной горутине
@@ -44,6 +46,7 @@ func StartBotLoop(ctx context.Context, bot *tgbotapi.BotAPI, updates <-chan tgbo
 			//логика не команд
 			isCommand := strings.HasPrefix(strings.TrimSpace(u.Message.Text), "/")
 
+			//борьба со спамом не-командами
 			if !isCommand {
 				shouldReply := handleNonCommand(u.Message.From.ID)
 				if !shouldReply {
@@ -103,6 +106,7 @@ func StartBotLoop(ctx context.Context, bot *tgbotapi.BotAPI, updates <-chan tgbo
 	}
 }
 
+// базовая функция отправки текстового ответа
 func sendReply(ctx context.Context, bot *tgbotapi.BotAPI, chatID int64, replyTo int, text string) error {
 	msg := tgbotapi.NewMessage(chatID, text)
 
@@ -125,6 +129,7 @@ func sendReplyWithKeyboard(ctx context.Context, bot *tgbotapi.BotAPI, chatID int
 	return err
 }
 
+// отправляет ответ + клавиатуру выбора периода для расчетов
 func sendReplyWithCalcKeyboard(ctx context.Context, bot *tgbotapi.BotAPI, chatID int64, replyTo int, text string) error {
 	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ParseMode = tgbotapi.ModeMarkdown
@@ -135,6 +140,7 @@ func sendReplyWithCalcKeyboard(ctx context.Context, bot *tgbotapi.BotAPI, chatID
 	return err
 }
 
+// логика анти-спама для обычных сообщений.При любой команде счётчик сбрасывается
 func handleNonCommand(userID int64) bool {
 	nonCommandCounter.Lock()
 	defer nonCommandCounter.Unlock()
@@ -142,29 +148,33 @@ func handleNonCommand(userID int64) bool {
 	nonCommandCounter.m[userID]++
 	count := nonCommandCounter.m[userID]
 
-	// Отвечаем 1 раз из 5
+	// отвечает на 1 из 5
 	return count%5 == 0
 }
 
+// если команда начинаем отсчёт заново
 func resetNonCommandCounter(userID int64) {
 	nonCommandCounter.Lock()
 	delete(nonCommandCounter.m, userID) // сбрасываем при любой команде
 	nonCommandCounter.Unlock()
 }
 
+// центральная обработка нажатий на инлайн-кнопки
 func handleCallbackQuery(ctx context.Context, bot *tgbotapi.BotAPI, cb *tgbotapi.CallbackQuery) {
 	_, _ = bot.Request(tgbotapi.NewCallback(cb.ID, ""))
 
 	switch cb.Data {
+	//помощь
 	case "cmd_help":
 		sendReplyWithKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID, HandleHelp())
 		return
-
+		//добавление
 	case "cmd_add":
 		sendReplyWithKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID,
 			"Напиши расход, например:\n\n`/add 150 корм`")
 		return
 
+		//спрашиваем за сколько считать
 	case "cmd_calc":
 		sendReplyWithCalcKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID, "Выбери период:")
 		return
@@ -186,7 +196,7 @@ func handleCallbackQuery(ctx context.Context, bot *tgbotapi.BotAPI, cb *tgbotapi
 		msg.ReplyMarkup = keyboard
 		bot.Send(msg)
 		return
-
+		//считаем
 	case "calc_day", "calc_week", "calc_month", "calc_quarter", "calc_halfyear", "calc_year", "calc_all":
 		period := cb.Data[5:]
 		response, err := HandleCalc(ctx, []string{period}, cb.From.ID)
@@ -213,7 +223,7 @@ func handleCallbackQuery(ctx context.Context, bot *tgbotapi.BotAPI, cb *tgbotapi
 			sendReplyWithKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID, "Главное меню:")
 			return
 		}
-
+		//дефолт
 		sendReplyWithKeyboard(ctx, bot, cb.Message.Chat.ID, cb.Message.MessageID, "Неизвестная кнопка")
 	}
 }

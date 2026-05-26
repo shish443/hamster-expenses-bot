@@ -18,7 +18,6 @@ import (
 var mskLoc = time.FixedZone("MSK", 3*60*60) // ютк+3
 
 // HandleHelp - приветствие и список команд
-// HandleHelp - приветствие и список команд
 func HandleHelp() string {
 	return `👋 Привет! Я бот для учёта расходов на хомячков 🐹
 
@@ -171,7 +170,7 @@ func HandleCalc(ctx context.Context, args []string, userID int64) (string, error
 	return fmt.Sprintf("📊 Расходы за %s: %.2f ₽", period, total), nil
 }
 
-// Вспомогательная функция
+// Вспомогательная функция подсчета за все время
 func calcAllTime(ctx context.Context, userID int64) (string, error) {
 	var total float64
 
@@ -318,6 +317,7 @@ func HandleComplaint(ctx context.Context, bot *tgbotapi.BotAPI, args []string, u
 	return "✅ Жалоба отправлена админу. Спасибо!", nil
 }
 
+// уведомления в тг админу для жалоб
 func notifyAdmin(ctx context.Context, bot *tgbotapi.BotAPI, text string) {
 	adminID := getAdminID()
 	if adminID == 0 || bot == nil {
@@ -328,6 +328,7 @@ func notifyAdmin(ctx context.Context, bot *tgbotapi.BotAPI, text string) {
 	}
 }
 
+// функции админа
 func HandleAdmin(ctx context.Context, args []string, userID int64) (string, error) {
 	adminID := getAdminID()
 	if userID != adminID {
@@ -360,6 +361,7 @@ func HandleAdminHelp() string {
 /adminhelp - это сообщение`
 }
 
+// глобальная статистика для админа
 func getGlobalStats() string {
 	var totalUsers int
 	DataBase.QueryRow("SELECT COUNT(DISTINCT user_id) FROM expenses").Scan(&totalUsers)
@@ -378,6 +380,7 @@ func getGlobalStats() string {
 		getUptime(), totalMessages, totalErrors, totalComplaints, totalUsers, totalExpenses)
 }
 
+// статистика юзера для админа
 func getUserStats(ctx context.Context, userID int64) (string, error) {
 	var count int
 	var sum float64

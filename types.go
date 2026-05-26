@@ -1,6 +1,7 @@
 // types.go
 package main
 
+// тупо тип, думал их будет больше поэтому выделили файл
 type Command struct {
 	Name   string
 	Args   []string

@@ -17,12 +17,13 @@ import (
 var BotInstance *tgbotapi.BotAPI
 
 func main() {
-	//получение ключа
+	//выгрузка переменных из ЕНВшки
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("ошибка чтения .env файла")
 	}
-
+	// настройка хттп-клиента с прокси (sing-box)
+	// Это нужно, чтобы бот работал в РФ при блокировках
 	proxyURL, parseErr := url.Parse("http://127.0.0.1:2080")
 	if parseErr != nil {
 		log.Fatal("неверный URL прокси: ", parseErr)
@@ -34,7 +35,7 @@ func main() {
 		},
 	}
 
-	// проврка БД
+	// запуск и проврка БД
 	if err = InitDB(); err != nil {
 		log.Fatal("Ошибка подключения к БД: ", err)
 	}

@@ -1,6 +1,8 @@
+## не спрашивайте меня что тут и как, я сам честно не до конца понимаю
 version: '3.8'
 
 services:
+#база данных(постгрес)
   postgres:
     image: postgres:15-alpine
     container_name: hamster_db
@@ -17,6 +19,7 @@ services:
       timeout: 5s
       retries: 5
 
+# Нужен для обхода блокировок Telegram в России
   proxy:
     image: ghcr.io/sagernet/sing-box:latest
     container_name: hamster_proxy
@@ -25,9 +28,11 @@ services:
       - ./sing_box_config.json:/etc/sing-box/config.json
     restart: unless-stopped
 
+#сам бот
   bot:
     build: .
     container_name: hamster_bot
+    #бот работает в сети прокси, чтобы все запросы к Telegram шли через sing-box
     network_mode: "service:proxy"
     environment:
       - ApiTelegramBot=${ApiTelegramBot}
@@ -37,18 +42,20 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
+      # Настройка прокси для Go HTTP-клиента
       - HTTP_PROXY=http://127.0.0.1:2080  
       - HTTPS_PROXY=http://127.0.0.1:2080
       - http_proxy=http://127.0.0.1:2080
       - https_proxy=http://127.0.0.1:2080
+      # Исключаем локальные сервисы из прокси
       - NO_PROXY=postgres,host.docker.internal
       - no_proxy=postgres,host.docker.internal
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_healthy # ждем, пока БД будет готова
       proxy:
         condition: service_started
-    restart: unless-stopped
+    restart: unless-stopped # автоматический перезапуск при падении
 
 volumes:
   pgdata:

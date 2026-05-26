@@ -8,9 +8,10 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-// тупо выбор какую команду задействовать, для данного проекта можно было handlers.go не создавать, но при маштабировании, если оно будет-полезно, так что сделал в 2 файлах
+// тупо выбор какую команду задействовать, для данного проекта можно было handlers.go не создавать, но при маштабировании, если оно будет(спойлер оно было, но все равно немного громоздко)-полезно, так что сделал в 2 файлах
 func Router(ctx context.Context, bot *tgbotapi.BotAPI, cmd *Command) (string, error) {
 	switch cmd.Name {
+	//Основные пользовательские команды
 	// хеллоу
 	case "start", "help":
 		return HandleHelp(), nil
@@ -45,7 +46,7 @@ func Router(ctx context.Context, bot *tgbotapi.BotAPI, cmd *Command) (string, er
 	case "complaint":
 		return HandleComplaint(ctx, bot, cmd.Args, cmd.UserID)
 
-	//админ комнады
+	//Админ комнады
 	case "admin":
 		return HandleAdmin(ctx, cmd.Args, cmd.UserID)
 	case "adminhelp":

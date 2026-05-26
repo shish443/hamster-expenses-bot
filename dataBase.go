@@ -27,7 +27,7 @@ func InitDB() error {
 		return fmt.Errorf("ошибка открытия соединения: %w", err)
 	}
 
-	// ожидание
+	// проверяем реальное соединение + повторные попытки
 	for i := 0; i < 10; i++ {
 		err = DataBase.Ping()
 		if err == nil {

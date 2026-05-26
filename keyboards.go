@@ -7,6 +7,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// возвращает основную инлайн-клавиатуру бота
 func getMainKeyboard() tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
@@ -23,6 +24,8 @@ func getMainKeyboard() tgbotapi.InlineKeyboardMarkup {
 	)
 }
 
+// возвращает клавиатуру выбора периода для команды /calc
+// Используется только после нажатия кнопки «Посчитать»
 func getCalcKeyboard() tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
@@ -44,7 +47,6 @@ func getCalcKeyboard() tgbotapi.InlineKeyboardMarkup {
 }
 
 // Кнопки удаления для каждой записи
-// Кнопки удаления для каждой записи
 func createDeleteKeyboard(records []struct {
 	ID   int
 	Text string
@@ -59,9 +61,9 @@ func createDeleteKeyboard(records []struct {
 		rows = append(rows, tgbotapi.NewInlineKeyboardRow(btn))
 	}
 
-	// Кнопки управления
+	// Кнопки возврата
 	rows = append(rows, tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("← Главное меню", "main_menu"),
+		tgbotapi.NewInlineKeyboardButtonData("Главное меню", "main_menu"),
 	))
 
 	return tgbotapi.NewInlineKeyboardMarkup(rows...)

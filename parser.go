@@ -9,6 +9,7 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
+// парсер отвечает за разбор входящего сообщения и выделение команд
 func Parser(bot *tgbotapi.BotAPI, update tgbotapi.Update) (*Command, error) {
 	// Если это не команда бот игнорит
 	if update.Message == nil || update.Message.Text == "" {
@@ -20,6 +21,7 @@ func Parser(bot *tgbotapi.BotAPI, update tgbotapi.Update) (*Command, error) {
 	// удаление / и определение команда ли это. работа в юникоде, да излишество, но учимся сразу правильно
 	firstRune, size := utf8.DecodeRuneInString(text)
 
+	//определяем, начинается ли сообщение с /
 	if firstRune == '/' {
 		text = text[size:]
 		text = strings.TrimSpace(text)
@@ -31,14 +33,14 @@ func Parser(bot *tgbotapi.BotAPI, update tgbotapi.Update) (*Command, error) {
 		return nil, errors.New("не команда")
 	}
 
-	//разбиваем строку
+	// разбиваем строку и корректно обрабатывает множественные пробелы
 	parts := strings.Fields(text)
 	if len(parts) == 0 {
 		return nil, errors.New("пустая команда")
 	}
 
 	return &Command{
-		Name:   strings.ToLower(parts[0]), // "add"
+		Name:   strings.ToLower(parts[0]), // приводим к нижнему регистру для удобства
 		Args:   parts[1:],                 // ["150", "корм"]
 		UserID: update.Message.From.ID,
 		ChatID: update.Message.Chat.ID,
